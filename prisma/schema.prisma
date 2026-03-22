@@ -1,15 +1,1197 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AcademicYear {
+  id                 String             @id @default(cuid())
+  schoolId           String
+  name               String
+  startDate          DateTime
+  endDate            DateTime
+  isCurrent          Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt()
+  school             School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classEnrollments   ClassEnrollment[]
+  exams              Exams[]
+  monthlyFeeStatuses MonthlyFeeStatus[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isCurrent])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AllottedSlots {
+  id        String   @id @default(cuid())
+  schoolId  String
+  staffId   String
+  day       Days
+  start     String
+  end       String
+  sectionId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, day, start, end])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Attendance {
+  id         String   @id @default(cuid())
+  schoolId   String
+  classId    String
+  sectionId  String
+  studentIds String[]
+  date       DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, classId, sectionId, date])
+  @@index([schoolId, classId, sectionId, date])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Assignment {
+  id                 String                 @id @default(cuid())
+  schoolId           String
+  title              String
+  description        String?
+  classId            String
+  sectionId          String
+  subjectId          String
+  dueDate            DateTime
+  fullMarks          Float
+  attachmentUrl      String?
+  attachmentFileName String?
+  createdBy          String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt()
+  submissions        AssignmentSubmission[]
+  class              Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school             School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section            Section                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject            Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, classId, sectionId, subjectId])
+  @@index([schoolId, dueDate])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Book {
+  id               String            @id @default(cuid())
+  schoolId         String
+  isbn             String?
+  title            String
+  author           String
+  publisher        String?
+  publishedYear    Int?
+  category         String
+  language         String            @default("English")
+  edition          String?
+  pages            Int?
+  totalCopies      Int
+  availableCopies  Int
+  shelfLocation    String?
+  description      String?
+  coverImage       String?
+  price            Float?            @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt()
+  school           School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bookIssues       BookIssue[]
+  libraryRegisters LibraryRegister[]
+
+  @@unique([schoolId, isbn])
+  @@index([schoolId, title, author, category])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model BookIssue {
+  id            String      @id @default(cuid())
+  schoolId      String
+  bookId        String
+  libraryCardId String
+  studentId     String
+  issueDate     DateTime    @default(now())
+  dueDate       DateTime
+  returnDate    DateTime?
+  status        IssueStatus @default(ISSUED)
+  fine          Float       @default(0)
+  remarks       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt()
+  book          Book        @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  libraryCard   LibraryCard @relation(fields: [libraryCardId], references: [id], onDelete: Restrict)
+  school        School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, bookId, status])
+  @@index([schoolId, studentId, status])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Class {
+  id               String            @id @default(cuid())
+  schoolId         String
+  name             String
+  classTeacherId   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt()
+  assignments      Assignment[]
+  attendances      Attendance[]
+  classTeacher     Staff?            @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
+  school           School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classEnrollments ClassEnrollment[]
+  exams            Exams[]
+  feeStructure     FeeStructure?
+  sections         Section[]
+  subjects         SubjectClass[]
+  timeTables       Timetable[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ClassEnrollment {
+  id             String           @id @default(cuid())
+  schoolId       String
+  studentId      String
+  classId        String
+  sectionId      String
+  academicYearId String
+  rollNumber     String?
+  status         EnrollmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt()
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  class          Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section        Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, sectionId, academicYearId])
+  @@index([schoolId, classId, sectionId, academicYearId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model DocumentTemplate {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  templateUrl String
+  fields      Json
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdBy])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Enquiry {
+  id             String        @id @default(cuid())
+  schoolId       String
+  name           String
+  email          String
+  phoneNumber    String
+  subject        String?
+  message        String
+  status         EnquiryStatus @default(NEW)
+  notes          String?
+  guardianName   String?
+  gender         String?
+  class          String?
+  address        String?
+  boardingType   String?
+  previousSchool String?
+  enquiryDate    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt()
+  school         School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([schoolId, status])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Exams {
+  id             String       @id @default(cuid())
+  schoolId       String
+  name           String
+  classId        String
+  academicYearId String
+  startTime      String
+  endTime        String
+  duration       String
+  subjects       Json[]
+  totalMarks     Float
+  passingMarks   Float
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt()
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  results        Result[]
+
+  @@index([schoolId, classId, academicYearId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Expense {
+  id        String   @id @default(cuid())
+  schoolId  String
+  amount    Float
+  date      String
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, date])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model FeeStructure {
+  id         String   @id @default(cuid())
+  schoolId   String
+  classId    String   @unique
+  totalFee   Float    @default(0)
+  monthlyFee Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, classId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Hostel {
+  id          String     @id @default(cuid())
+  schoolId    String
+  name        String
+  type        HostelType
+  address     String?
+  warden      String?
+  wardenPhone String?
+  floors      Int?
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt()
+  school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  rooms       Room[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Income {
+  id          String         @id @default(cuid())
+  schoolId    String
+  source      String
+  amount      Float
+  date        DateTime       @default(now())
+  description String?
+  category    IncomeCategory
+  remarks     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt()
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, category])
+  @@index([schoolId, date])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Invoice {
+  id            String        @id @default(cuid())
+  schoolId      String
+  invoiceNumber String
+  studentId     String?
+  amount        Float
+  description   String
+  dueDate       DateTime
+  status        InvoiceStatus @default(PENDING)
+  issueDate     DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt()
+  school        School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student       Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, invoiceNumber])
+  @@index([schoolId, status])
+  @@index([schoolId, studentId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model LibraryCard {
+  id         String      @id @default(cuid())
+  schoolId   String
+  cardNumber String
+  studentId  String      @unique
+  issueDate  DateTime    @default(now())
+  expiryDate DateTime
+  status     CardStatus  @default(ACTIVE)
+  maxBooks   Int         @default(3)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt()
+  bookIssues BookIssue[]
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, cardNumber])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model LibraryRegister {
+  id                 String         @id @default(cuid())
+  schoolId           String
+  serialNumber       Int            @default(autoincrement())
+  bookId             String?
+  studentId          String?
+  bookIssueId        String?
+  accessionNumber    String?
+  bookTitle          String
+  author             String
+  studentName        String
+  studentClass       String?
+  registrationNumber String?
+  issueDate          DateTime       @default(now())
+  returnDate         DateTime?
+  dueDate            DateTime
+  status             RegisterStatus @default(ISSUED)
+  fine               Float          @default(0)
+  remarks            String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt()
+  book               Book?          @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  school             School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student            Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, bookId])
+  @@index([schoolId, status])
+  @@index([schoolId, studentId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model MonthlyFeeStatus {
+  id             String        @id @default(cuid())
+  schoolId       String
+  studentId      String
+  academicYearId String
+  months         String[]
+  totalAmount    Float
+  paidAmount     Float         @default(0)
+  dueAmount      Float
+  dueDate        DateTime?
+  status         PaymentStatus
+  notes          String?
+  allComponents  Json          @default("{}")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt()
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  school         School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+
+  @@index([schoolId, studentId, academicYearId])
+}
+
+model Owner {
+  id                  String         @id @default(cuid())
+  name                String
+  email               String         @unique
+  password            String
+  refreshToken        String?        @unique
+  profileImageUrl     String?
+  isActive            Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt()
+  school              School[]
+  transactions        Transactions[]
+  currentSubscription Subscription?
+
+  @@index([email])
+}
+
+model Subscription {
+  id            String       @id @default(cuid())
+  ownerId       String       @unique
+  owner         Owner?       @relation(fields: [ownerId], references: [id])
+  planName      String
+  startedAt     DateTime
+  expiresAt     DateTime
+  status        PlanStatus
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt()
+  transactionId String       @unique
+  transaction   Transactions @relation(references: [id], fields: [transactionId])
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Parent {
+  id           String       @id @default(cuid())
+  schoolId     String
+  firstName    String
+  lastName     String
+  phoneNumber  String
+  occupation   String?
+  address      String?
+  relationship Relationship
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt()
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students     Student[]
+
+  @@unique([schoolId, phoneNumber])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Result {
+  id         String   @id @default(cuid())
+  schoolId   String
+  examId     String
+  classId    String
+  sectionId  String
+  resultData Json[]
+  releasedOn String?  @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
+  exam       Exams    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, classId, sectionId])
+  @@index([schoolId, examId, classId, sectionId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Role {
+  id               String   @id @default(cuid())
+  schoolId         String
+  role             String
+  deletable        Boolean  @default(false)
+  editable         Boolean  @default(false)
+  assignable       Boolean  @default(false)
+  pagePermissions  String[]
+  routePermissions Json     @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt()
+  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  users            User[]
+
+  @@unique([schoolId, role])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Room {
+  id          String           @id @default(cuid())
+  schoolId    String
+  hostelId    String
+  roomNumber  String
+  floor       Int?
+  roomType    RoomType
+  capacity    Int
+  facilities  String[]         @default([])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt()
+  hostel      Hostel           @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  School      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  allocations RoomAllocation[]
+
+  @@unique([hostelId, roomNumber])
+  @@index([hostelId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RoomAllocation {
+  id             String           @id @default(cuid())
+  schoolId       String
+  roomId         String
+  studentId      String
+  allocationDate DateTime         @default(now())
+  vacateDate     DateTime?
+  status         AllocationStatus @default(ACTIVE)
+  bedNumber      String?
+  remarks        String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt()
+  room           Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  School         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, status])
+  @@index([studentId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Route {
+  id                String             @id @default(cuid())
+  schoolId          String
+  routeName         String
+  routeNumber       String?
+  stops             Json               @default("[]")
+  startPoint        String
+  endPoint          String
+  distance          Float?
+  estimatedDuration Int?
+  fare              Float
+  vehicleId         String?            @unique
+  status            TransportStatus    @default(ACTIVE)
+  remarks           String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt()
+  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vehicle           Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  studentTransports StudentTransport[]
+
+  @@unique([schoolId, routeName])
+  @@index([schoolId, status])
+}
+
+model School {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  subdomain String   @unique
+  code      String?
+  address   String?
+  city      String?
+  state     String?
+  pincode   String?
+  country   String?  @default("India")
+  email     String?
+  phone     String?
+  website   String?
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  tagline               String?
+  principalName         String?
+  established           String?
+  affiliationNo         String?
+  schoolCode            String?
+  assignmentSubmissions AssignmentSubmission[]
+  academicYears         AcademicYear[]
+  assignments           Assignment[]
+  allottedSlots         AllottedSlots[]
+  attendances           Attendance[]
+  books                 Book[]
+  bookIssues            BookIssue[]
+  classes               Class[]
+  classEnrollments      ClassEnrollment[]
+  documentTemplates     DocumentTemplate[]
+  enquiries             Enquiry[]
+  exams                 Exams[]
+  expenses              Expense[]
+  feeStructures         FeeStructure[]
+  hostels               Hostel[]
+  incomes               Income[]
+  invoices              Invoice[]
+  libraryCards          LibraryCard[]
+  libraryRegisters      LibraryRegister[]
+  monthlyFeeStatuses    MonthlyFeeStatus[]
+  parents               Parent[]
+  results               Result[]
+  roles                 Role[]
+  Room                  Room[]
+  RoomAllocation        RoomAllocation[]
+  routes                Route[]
+  owner                 Owner                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sections              Section[]
+  staff                 Staff[]
+  staffAttendances      StaffAttendance[]
+  StaffDocument         StaffDocument[]
+  staffLeaves           StaffLeave[]
+  students              Student[]
+  StudentDocument       StudentDocument[]
+  StudentTransport      StudentTransport[]
+  subjects              Subject[]
+  SubjectClass          SubjectClass[]
+  SubjectTeacher        SubjectTeacher[]
+  timetables            Timetable[]
+  transactions          Transaction[]
+  users                 User[]
+  vehicles              Vehicle[]
+
+  @@index([subdomain])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Section {
+  id          String            @id @default(cuid())
+  schoolId    String
+  name        String
+  classId     String
+  capacity    Int?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt()
+  assignments Assignment[]
+  attendances Attendance[]
+  enrollments ClassEnrollment[]
+  class       Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  timetables  Timetable[]
+
+  @@unique([classId, name])
+  @@index([schoolId, classId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Staff {
+  id               String           @id @default(cuid())
+  schoolId         String
+  userId           String           @unique
+  employeeId       String
+  firstName        String
+  lastName         String
+  dateOfBirth      String
+  gender           Gender
+  designation      String?
+  department       String?
+  qualification    String?
+  experience       Float?
+  joiningDate      String?
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  zipCode          String?
+  phoneNumber      String
+  emergency        String?
+  salary           Float?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt()
+  allotedSlot      AllottedSlots[]
+  classTeacher     Class[]
+  school           School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents        StaffDocument?
+  staffLeaves      StaffLeave[]
+  teachingSubjects SubjectTeacher[]
+
+  @@unique([schoolId, employeeId])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StaffAttendance {
+  id        String   @id @default(cuid())
+  schoolId  String
+  date      String
+  staffIds  String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, date])
+  @@index([schoolId, date])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StaffDocument {
+  id        String   @id @default(cuid())
+  schoolId  String
+  staffId   String   @unique
+  panNumber String?
+  uidNumber String?
+  idCardUrl String?
+  documents Json?    @default("[]")
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  School    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StaffLeave {
+  id          String   @id @default(cuid())
+  schoolId    String
+  staffId     String
+  leaveType   String
+  startDate   String
+  endDate     String
+  status      String   @default("Pending")
+  reason      String?
+  updatedDate String?
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, staffId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Student {
+  id                    String                 @id @default(cuid())
+  schoolId              String
+  userId                String                 @unique
+  registrationNo        String
+  firstName             String
+  middleName            String?
+  lastName              String
+  dateOfBirth           String
+  gender                Gender?
+  bloodGroup            String?
+  address               String?
+  city                  String?
+  state                 String?
+  country               String?
+  zipCode               String?
+  phoneNumber           String?
+  phoneCountryCode      String?                @default("+91")
+  emergencyContact      String?
+  emergencyCountryCode  String?                @default("+91")
+  admissionDate         DateTime               @default(now())
+  rollNumber            String?
+  uidNumber             String?
+  apaarNumber           String?
+  parentId              String?
+  fatherName            String?
+  fatherPhone           String?
+  motherName            String?
+  motherPhone           String?
+  previousSchool        String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt()
+  bookIssues            BookIssue[]
+  classEnrollments      ClassEnrollment[]
+  invoices              Invoice[]
+  libraryCard           LibraryCard?
+  libraryRegisters      LibraryRegister[]
+  monthlyFeeStatuses    MonthlyFeeStatus[]
+  roomAllocations       RoomAllocation[]
+  assignmentSubmissions AssignmentSubmission[]
+  parent                Parent?                @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents             StudentDocument?
+  transportAssignments  StudentTransport[]
+  transactions          Transaction[]
+
+  @@unique([schoolId, registrationNo])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AssignmentSubmission {
+  id               String     @id @default(cuid())
+  schoolId         String
+  assignmentId     String
+  studentId        String
+  submittedBy      String?
+  solutionUrl      String
+  solutionFileName String?
+  remarks          String?
+  submittedAt      DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt()
+  assignment       Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  school           School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student          Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([schoolId, assignmentId])
+  @@index([schoolId, studentId])
+  @@index([schoolId, submittedAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StudentDocument {
+  id        String   @id @default(cuid())
+  schoolId  String
+  studentId String   @unique
+  panNumber String?
+  uidNumber String?
+  idCardUrl String?
+  documents Json?    @default("[]")
+  parents   Json?    @default("[]")
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  School    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StudentTransport {
+  id         String          @id @default(cuid())
+  schoolId   String
+  studentId  String
+  routeId    String
+  pickupStop String
+  dropStop   String
+  startDate  DateTime        @default(now())
+  endDate    DateTime?
+  monthlyFee Float
+  status     TransportStatus @default(ACTIVE)
+  remarks    String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt()
+  route      Route           @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  School     School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, routeId])
+  @@index([routeId])
+  @@index([studentId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Subject {
+  id          String           @id @default(cuid())
+  schoolId    String
+  name        String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt()
+  assignments Assignment[]
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classes     SubjectClass[]
+  teachers    SubjectTeacher[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubjectClass {
+  id           String   @id @default(cuid())
+  schoolId     String
+  subjectId    String
+  classId      String
+  hoursPerWeek Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt()
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  School       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, classId])
+  @@index([classId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubjectTeacher {
+  id        String   @id @default(cuid())
+  schoolId  String
+  subjectId String
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  School    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  teacher   Staff    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, teacherId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Timetable {
+  id          String   @id @default(cuid())
+  schoolId    String
+  sectionId   String   @unique
+  classId     String
+  allotments  Json[]
+  workingDays String[] @default(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"])
+  periods     Int      @default(8)
+  timeSlots   Json[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, classId, sectionId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Transaction {
+  id                 String            @id @default(cuid())
+  schoolId           String
+  transactionId      String
+  receiptNumber      String
+  studentId          String
+  monthlyFeeStatusId String
+  amount             Float
+  paymentMethod      PaymentMethod     @default(CASH)
+  transactionDate    DateTime          @default(now())
+  status             TransactionStatus @default(COMPLETED)
+  remarks            String?
+  totalAmount        Float?
+  dueAmount          Float?
+  months             String[]
+  previousDue        Float?
+  createdAt          DateTime          @default(now())
+  monthlyFeeStatus   MonthlyFeeStatus  @relation(fields: [monthlyFeeStatusId], references: [id])
+  school             School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student            Student           @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId, receiptNumber])
+  @@index([schoolId, studentId, monthlyFeeStatusId])
+  @@index([schoolId, transactionId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model User {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String?  @default("")
+  email           String
+  mobile          String?
+  password        String
+  roleId          String
+  refreshToken    String?  @unique
+  profileImageUrl String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt()
+  staff           Staff?
+  student         Student?
+  role            Role     @relation(fields: [roleId], references: [id])
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, email])
+  @@index([schoolId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Vehicle {
+  id                 String        @id @default(cuid())
+  schoolId           String
+  registrationNumber String
+  vehicleType        VehicleType
+  manufacturer       String?
+  model              String?
+  year               Int?
+  capacity           Int
+  status             VehicleStatus @default(ACTIVE)
+  insuranceNumber    String?
+  insuranceExpiry    DateTime?
+  fitnessExpiry      DateTime?
+  pollutionExpiry    DateTime?
+  driverName         String?
+  driverPhone        String?
+  driverLicense      String?
+  lastServiceDate    DateTime?
+  nextServiceDate    DateTime?
+  remarks            String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt()
+  routes             Route[]
+  school             School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, registrationNumber])
+  @@index([schoolId, status])
+}
+
+model Plans {
+  id               String   @id @default(cuid())
+  name             String
+  price            Float
+  modules          String[]
+  description      String?
+  discount         Float?
+  schoolLimit      Int
+  validityInMonths Int
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+model Tax {
+  id    String @id @default(cuid())
+  state String
+  cgst  Float  @default(0)
+  sgst  Float  @default(0)
+  igst  Float  @default(0)
+}
+
+model Transactions {
+  id               String            @id @default(cuid())
+  status           TransactionStatus @default(PENDING)
+  totalAmount      Float
+  totalTaxes       Float
+  planName         String
+  purchasedAt      DateTime          @default(now())
+  expiresAt        DateTime
+  validityInMonths Int
+  modules          String[]
+  ownerId          String
+  owner            Owner             @relation(fields: [ownerId], references: [id])
+  subscription     Subscription?
+
+  createdAt DateTime @default(now())
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum AllocationStatus {
+  ACTIVE
+  VACATED
+  TRANSFERRED
+}
+
+enum CardStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum Days {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
+
+enum EnquiryStatus {
+  NEW
+  READ
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  GRADUATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum HostelType {
+  BOYS
+  GIRLS
+  MIXED
+}
+
+enum IncomeCategory {
+  TUITION_FEE
+  DONATION
+  HOSTEL_FEE
+  TRANSPORT_FEE
+  MISCELLANEOUS
+  OTHER
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum IssueStatus {
+  ISSUED
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  ONLINE_PAYMENT
+  CHECK
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_PAID
+}
+
+enum PlanType {
+  BASIC
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+}
+
+enum RegisterStatus {
+  ISSUED
+  RETURNED
+  OVERDUE
+  LOST
+  DAMAGED
+}
+
+enum Relationship {
+  FATHER
+  MOTHER
+  GUARDIAN
+}
+
+enum RoomType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  DORMITORY
+}
+
+enum TransportStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+  OUT_OF_SERVICE
+}
+
+enum VehicleType {
+  BUS
+  VAN
+  MINI_BUS
+  CAR
 }

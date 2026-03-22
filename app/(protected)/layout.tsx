@@ -1,19 +1,27 @@
-import { AppSidebar } from '@/components/app-sidebar'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import React from 'react'
+import { AppSidebar } from "@/components/app-sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import React from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { redirect } from "next/navigation";
 
-export default function Layout({children}:{children:React.ReactNode}) {
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    redirect("/login");
+  }
   return (
     <SidebarProvider>
-        <AppSidebar variant='inset'/>
-        <header className="h-14 flex items-center border-b bg-card px-4">
-            <SidebarTrigger className="mr-4" />
-          </header>
-
-          <main className="flex-1 p-6 overflow-auto">
-            {children}
-          </main>
+      <AppSidebar variant="inset" />
+      <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
-

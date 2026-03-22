@@ -1,20 +1,22 @@
-"use client"
-import { useState } from "react";
-import DashboardLayout from "./DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, FileText, Receipt, Users } from "lucide-react";
-import { initialPlans, initialTransactions, initialTaxes, initialUsers } from "./mockData";
+import { SiteHeader } from "@/components/site-header";
+import { getDashboardStats } from "./actions";
 
-export default function Page() {
+export default async function Page() {
+  const data = await getDashboardStats();
+
   const stats = [
-    { title: "Total Plans", value: initialPlans.length, icon: FileText, desc: `${initialPlans.filter(p => p.isActive).length} active` },
-    { title: "Transactions", value: initialTransactions.length, icon: CreditCard, desc: `${initialTransactions.filter(t => t.status === 'completed').length} completed` },
-    { title: "Tax Rules", value: initialTaxes.length, icon: Receipt, desc: "States configured" },
-    { title: "Users", value: initialUsers.length, icon: Users, desc: `${initialUsers.filter(u => u.status === 'active').length} active` },
+    { title: "Total Plans", value: data.plans.total, icon: FileText, desc: `${data.plans.active} active` },
+    { title: "Transactions", value: data.transactions.total, icon: CreditCard, desc: `${data.transactions.completed} completed` },
+    { title: "Tax Rules", value: data.taxes.total, icon: Receipt, desc: "States configured" },
+    { title: "Users", value: data.users.total, icon: Users, desc: `${data.users.active} active` },
   ];
 
   return (
-      <div className="space-y-6">
+    <>
+      <SiteHeader header="Dashboard" />
+      <div className="@container/main p-4 space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your admin panel</p>
@@ -34,5 +36,6 @@ export default function Page() {
           ))}
         </div>
       </div>
+    </>
   );
 }
