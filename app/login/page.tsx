@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useRouter } from "next/router";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -16,7 +17,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const navigate = useNavigate();
+    const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<LoginFormData>({
@@ -30,7 +31,8 @@ export default function Login() {
       setLoading(false);
       if (data.email === "admin@school.com" && data.password === "admin123") {
         toast.success("Logged in successfully");
-        navigate("/dashboard");
+        router.replace("/dashboard");
+        
       } else {
         toast.error("Invalid credentials. Use admin@school.com / admin123");
       }
